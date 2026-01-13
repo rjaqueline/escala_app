@@ -1,94 +1,63 @@
+import 'package:escala_app/escala_12x8.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-// ATENÇÃO: agora usamos as datas 100% reais de 2024
-// e os deslocamentos oficiais de cada uma:
-final Map<String, DateTime> datasBaseEscalas2024 = {
-  "1B": DateTime(2024, 1, 3),
-  "2B": DateTime(2024, 1, 5),
-  "1D": DateTime(2024, 1, 8),
-  "2D": DateTime(2024, 1, 10),
-  "1A": DateTime(2024, 1, 13),
-  "2A": DateTime(2024, 1, 15),
-  "1C": DateTime(2024, 1, 18),
-  "2C": DateTime(2024, 1, 20),
-};
-
-// deslocamentos reais dentro do ciclo
-final Map<String, int> turmasDeslocamento = {
-  "1A": 0,
-  "1B": 2,
-  "1C": 5,
-  "1D": 7,
-  "2A": 10,
-  "2B": 12,
-  "2C": 15,
-  "2D": 17,
-};
-
 class ProximoMesPage extends StatelessWidget {
-  final String escala; // 1A, 1B, 1C, etc.
+  final String escala;
+  final int ano;
+  final int mes;
 
-  const ProximoMesPage({super.key, required this.escala});
-
+  const ProximoMesPage({
+    super.key,
+    required this.escala,
+    required this.ano,
+    required this.mes,
+  });
   // -------- GERAR ESCALA DO PRÓXIMO MÊS --------
   List<Map<String, dynamic>> gerarEscalaDoMes() {
-    final hoje = DateTime.now();
-    final proximoMes = DateTime(hoje.year, hoje.month + 1, 1);
-    final ultimoDia = DateTime(proximoMes.year, proximoMes.month + 1, 0).day;
+    final ultimoDia = DateTime(ano, mes + 1, 0).day;
+    final base = datasBaseEscalas[escala]!;
 
-    final dataBase = datasBaseEscalas2024[escala]!;
-    final deslocamento = turmasDeslocamento[escala]!;
-
-    // base ajustada (igual main.dart)
-    final baseCorrigida = dataBase.add(Duration(days: deslocamento));
-    final baseLimpa = DateTime(
-      baseCorrigida.year,
-      baseCorrigida.month,
-      baseCorrigida.day,
-    );
-
-    final List<Map<String, dynamic>> dias = [];
+    final lista = <Map<String, dynamic>>[];
 
     for (int dia = 1; dia <= ultimoDia; dia++) {
-      final data = DateTime(proximoMes.year, proximoMes.month, dia);
-      final dataLimpa = DateTime(data.year, data.month, data.day);
-      final diasDecorridos = dataLimpa.difference(baseLimpa).inDays;
+      final data = DateTime(ano, mes, dia);
+      final turno = calcularTurno(data, base);
 
-      // >>> MESMA LÓGICA CORRETA do motor principal
-      final ciclo = ((diasDecorridos % 20) + 20) % 20;
-      final status = (ciclo < 12) ? "Embarcada" : "De folga";
-
-      dias.add({"data": data, "status": status});
+      lista.add({'data': data, 'turno': turno});
     }
 
-    return dias;
+    return lista;
   }
-
   @override
   Widget build(BuildContext context) {
     final df = DateFormat('dd/MM');
     final dias = gerarEscalaDoMes();
+
     final hoje = DateTime.now();
     final proximoMes = DateTime(hoje.year, hoje.month + 1, 1);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Escala $escala – ${toBeginningOfSentenceCase(DateFormat.MMMM("pt_BR").format(proximoMes))} ${proximoMes.year}',
-        ),
-        centerTitle: true,
-        backgroundColor: const Color(0xFF483D8B),
-      ),
+  title: Text(
+    'Escala $escala – ${toBeginningOfSentenceCase(
+      DateFormat.MMMM("pt_BR").format(DateTime(ano, mes)),
+    )} $ano',
+  ),
+  centerTitle: true,
+  backgroundColor: const Color(0xFF483D8B),
+),
 
       body: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 40), // <-- AQUI
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
         itemCount: dias.length,
         itemBuilder: (context, index) {
           final item = dias[index];
-          final data = item["data"] as DateTime;
-          final status = item["status"] as String;
-          final embarcada = status == "Embarcada";
+          final data = item['data'] as DateTime;
+          final turno = item['turno'] as Turno;
+
+          final embarcada = turno == Turno.embarque;
+          final status = embarcada ? "Embarcada" : "Folga";
 
           return AnimatedContainer(
             duration: const Duration(milliseconds: 250),
@@ -99,7 +68,6 @@ class ProximoMesPage extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
                 color: embarcada ? Colors.red.shade200 : Colors.green.shade200,
-                width: 1,
               ),
             ),
             child: Row(
@@ -109,10 +77,8 @@ class ProximoMesPage extends StatelessWidget {
                   children: [
                     Icon(
                       embarcada
-                          ? Icons
-                                .directions_bus_filled_rounded // ÔNIBUS LINDO 🚌
-                          : Icons
-                                .airline_seat_individual_suite, // REDEZINHA 🛏️💚
+                          ? Icons.directions_bus_filled_rounded
+                          : Icons.airline_seat_individual_suite,
                       color: embarcada
                           ? Colors.red.shade600
                           : Colors.green.shade600,

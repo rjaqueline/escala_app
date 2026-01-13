@@ -35,7 +35,7 @@ class EscalaApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'MINHA ESCALA',
+      title: 'ESCALA',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -89,29 +89,19 @@ class _EscalaHomeState extends State<EscalaHome> {
   int diasRestantes = 0;
   String turmaSelecionada = "1A";
   String proximaMudancaTexto = "";
+  int mesSelecionado = DateTime.now().month;
+  int anoSelecionado = DateTime.now().year;
 
-  // deslocamento dentro do ciclo
-  static final Map<String, int> turmasDeslocamento = {
-    "1A": 0,
-    "1B": 2,
-    "1C": 5,
-    "1D": 7,
-    "2A": 10,
-    "2B": 12,
-    "2C": 15,
-    "2D": 17,
-  };
-
-  // Datas base reais de 2024 para cada turma
-  static final Map<String, DateTime> datasBaseEscalas2024 = {
-    "1B": DateTime(2024, 1, 3),
-    "2B": DateTime(2024, 1, 5),
-    "1D": DateTime(2024, 1, 8),
-    "2D": DateTime(2024, 1, 10),
-    "1A": DateTime(2024, 1, 13),
-    "2A": DateTime(2024, 1, 15),
-    "1C": DateTime(2024, 1, 18),
-    "2C": DateTime(2024, 1, 20),
+  // Datas base reais de 2026 para cada turma
+  static final Map<String, DateTime> datasBaseEscalas = {
+    "1B": DateTime(2026, 2, 1),
+    "2B": DateTime(2026, 2, 3),
+    "1D": DateTime(2026, 2, 6),
+    "2D": DateTime(2026, 2, 8),
+    "1A": DateTime(2026, 2, 11),
+    "2A": DateTime(2026, 2, 13),
+    "1C": DateTime(2026, 2, 16),
+    "2C": DateTime(2026, 2, 18),
   };
 
   // Lista fixa de turmas
@@ -193,6 +183,7 @@ class _EscalaHomeState extends State<EscalaHome> {
     );
   }
 
+  // SIM DEIXEI OS COMENTARIOS PORQUE ESSE É MEU PRIMEIRO APP
   // ---------- LÓGICA DE DADOS (PERSISTÊNCIA) ----------
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
@@ -204,7 +195,7 @@ class _EscalaHomeState extends State<EscalaHome> {
     setState(() {
       turmaSelecionada = turma;
       // dataBase vem SEMPRE da tabela fixa de 2024
-      dataBase = datasBaseEscalas2024[turmaSelecionada];
+      dataBase = datasBaseEscalas[turmaSelecionada];
       _calcularStatus();
     });
   }
@@ -217,14 +208,11 @@ class _EscalaHomeState extends State<EscalaHome> {
 
       setState(() {
         turmaSelecionada = value;
-        dataBase = datasBaseEscalas2024[turmaSelecionada];
+        dataBase = datasBaseEscalas[turmaSelecionada];
         _calcularStatus();
       });
 
-      await scheduleNextTravelNotification(
-        dataBase!,
-        turmasDeslocamento[turmaSelecionada]!,
-      );
+      await scheduleNextTravelNotification(dataBase!);
     }
   }
 
@@ -280,11 +268,13 @@ class _EscalaHomeState extends State<EscalaHome> {
   // ---------- UI ----------
   @override
   Widget build(BuildContext context) {
-    final isEmbarcada = status == "Embarcada";
+    // 1️⃣ variável de controle (não aparece na tela)
+    final bool isEmbarcada = status == "Embarcada";
 
+    // 2️⃣ interface
     return Scaffold(
-      appBar: AppBar(title: const Text("Minha Escala")),
-      drawer: _buildMenuDrawer(context),
+      appBar: AppBar(title: const Text("Escala")),
+
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -299,6 +289,7 @@ class _EscalaHomeState extends State<EscalaHome> {
               ),
 
               const SizedBox(height: 12),
+
               Align(
                 alignment: Alignment.centerRight,
                 child: IconButton(
@@ -318,11 +309,6 @@ class _EscalaHomeState extends State<EscalaHome> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    minimumSize: const Size(double.infinity, 40),
-                  ),
-
                   onPressed: _atualizarStatusManual,
                   icon: const Icon(Icons.refresh, size: 15),
                   label: const Text("Atualizar Status"),
@@ -330,8 +316,100 @@ class _EscalaHomeState extends State<EscalaHome> {
               ),
 
               const SizedBox(height: 10),
-
               _buildStatusCard(isEmbarcada),
+
+              const SizedBox(height: 20),
+
+              // 👇 MÊS + ANO (compactos e lado a lado)
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: DropdownButtonFormField<int>(
+                      value: mesSelecionado,
+                      isDense: true,
+                      decoration: const InputDecoration(
+                        labelText: "Mês",
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 10,
+                        ),
+                      ),
+                      items: List.generate(12, (index) {
+                        final mes = index + 1;
+                        return DropdownMenuItem(
+                          value: mes,
+                          child: Text(
+                            toBeginningOfSentenceCase(
+                              DateFormat.MMMM(
+                                "pt_BR",
+                              ).format(DateTime(2026, mes)),
+                            )!,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() => mesSelecionado = value);
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(width: 10),
+
+                  Expanded(
+                    flex: 1,
+                    child: DropdownButtonFormField<int>(
+                      value: anoSelecionado,
+                      isDense: true,
+                      decoration: const InputDecoration(
+                        labelText: "Ano",
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 10,
+                        ),
+                      ),
+                      items: List.generate(15, (index) {
+                        final ano = DateTime.now().year - 5 + index;
+                        return DropdownMenuItem(
+                          value: ano,
+                          child: Text(ano.toString()),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() => anoSelecionado = value);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // 🔘 BOTÃO
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.calendar_month),
+                  label: const Text("Ver escala do mês"),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ProximoMesPage(
+                          escala: turmaSelecionada,
+                          mes: mesSelecionado,
+                          ano: anoSelecionado,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
             ],
           ),
         ),
@@ -488,8 +566,11 @@ class _EscalaHomeState extends State<EscalaHome> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      ProximoMesPage(escala: turmaSelecionada),
+                  builder: (context) => ProximoMesPage(
+                    escala: turmaSelecionada,
+                    mes: mesSelecionado,
+                    ano: anoSelecionado,
+                  ),
                 ),
               );
             },
@@ -501,10 +582,7 @@ class _EscalaHomeState extends State<EscalaHome> {
 }
 
 // ---------- NOTIFICAÇÕES EXTERNAS ----------
-Future<void> scheduleNextTravelNotification(
-  DateTime dataBase,
-  int deslocamento,
-) async {
+Future<void> scheduleNextTravelNotification(DateTime dataBase) async {
   final now = DateTime.now();
 
   for (int i = 0; i < 30; i++) {
@@ -514,7 +592,7 @@ Future<void> scheduleNextTravelNotification(
         .difference(DateTime(dataBase.year, dataBase.month, dataBase.day))
         .inDays;
 
-    final ciclo = ((diasDesde + deslocamento) % 20 + 20) % 20;
+    final ciclo = ((diasDesde) % 20 + 20) % 20;
 
     if (ciclo == 0 || ciclo == 11) {
       final notificationDay = candidate.subtract(const Duration(days: 1));
